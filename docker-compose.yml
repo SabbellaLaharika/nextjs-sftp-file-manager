@@ -1,0 +1,32 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - SFTP_HOST=sftp
+      - SFTP_PORT=22
+      - SFTP_USER=testuser
+      - SFTP_PASSWORD=testpass
+    depends_on:
+      sftp:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  sftp:
+    image: atmoz/sftp
+    ports:
+      - "2222:22"
+    command: testuser:testpass:::upload
+    healthcheck:
+      test: ["CMD", "nmap", "-p", "22", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
