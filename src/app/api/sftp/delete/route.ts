@@ -12,7 +12,7 @@ export async function DELETE(request: NextRequest) {
   try {
     const sftp = await getSftp();
 
-    return await new Promise((resolve) => {
+    return await new Promise<NextResponse>((resolve) => {
       // First stat the path to see if it's a directory or a file
       sftp.stat(path, (err: any, stats: any) => {
         if (err) {

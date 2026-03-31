@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
     const sftp = await getSftp();
     
     // First, stat the file to get size and ensure it exists
-    return await new Promise((resolve) => {
+    return await new Promise<NextResponse>((resolve) => {
       sftp.stat(path, (statErr: any, stats: any) => {
         if (statErr) {
           console.error("sftp.stat error:", statErr);

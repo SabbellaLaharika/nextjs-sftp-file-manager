@@ -15,7 +15,7 @@ export async function PATCH(request: NextRequest) {
 
     const sftp = await getSftp();
 
-    return await new Promise((resolve) => {
+    return await new Promise<NextResponse>((resolve) => {
       sftp.rename(fromPath, toPath, (err: any) => {
         if (err) {
           console.error("sftp.rename error:", err);

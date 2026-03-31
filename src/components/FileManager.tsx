@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
-import { Folder, File, Upload, Trash, Download, Eye, FileText, Image as ImageIcon, X } from "lucide-react";
+import React, { useState, useRef, useEffect } from "react";
+import { Folder, File, Upload, Trash, Download, Eye, FileText, Image as ImageIcon, X, Edit2 } from "lucide-react";
 
 type FileItem = {
   name: string;
@@ -16,7 +16,7 @@ export default function FileManager({ initialPath = "/upload", initialItems = []
   const [items, setItems] = useState<FileItem[]>(initialItems);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
+
   // Upload state
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -148,21 +148,46 @@ export default function FileManager({ initialPath = "/upload", initialItems = []
     }
   };
 
+  const handleRename = async (oldName: string) => {
+    const newName = prompt("Enter new name:", oldName);
+    if (!newName || newName === oldName) return;
+
+    try {
+      const fromPath = currentPath === "/" ? `/${oldName}` : `${currentPath}/${oldName}`;
+      const toPath = currentPath === "/" ? `/${newName}` : `${currentPath}/${newName}`;
+
+      const res = await fetch("/api/sftp/rename", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fromPath, toPath })
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to rename");
+      }
+
+      fetchDirectory(currentPath);
+    } catch (err: any) {
+      setError(err.message);
+    }
+  };
+
   return (
     <div className="flex flex-col h-screen bg-gray-50 dark:bg-zinc-950 text-gray-900 dark:text-gray-100">
       {/* Top Bar & Breadcrumbs */}
       <header className="flex items-center justify-between px-6 py-4 bg-white dark:bg-zinc-900 border-b">
         <div data-test-id="breadcrumbs" className="flex items-center space-x-2 text-sm font-medium">
-          <button 
+          <button
             onClick={() => handleNavigate("/")}
             className="hover:text-blue-600 transition-colors"
           >
             Root
           </button>
-          {breadcrumbParts.map((part, index) => (
+          {breadcrumbParts.map((part: string, index: number) => (
             <div key={index} className="flex items-center space-x-2">
               <span className="text-gray-400">/</span>
-              <button 
+              <button
                 onClick={() => handleBreadcrumbClick(index)}
                 className="hover:text-blue-600 transition-colors"
               >
@@ -172,13 +197,13 @@ export default function FileManager({ initialPath = "/upload", initialItems = []
           ))}
         </div>
         <div className="flex items-center space-x-4">
-          <input 
-            type="file" 
-            ref={fileInputRef} 
-            className="hidden" 
+          <input
+            type="file"
+            ref={fileInputRef}
+            className="hidden"
             onChange={handleUpload}
           />
-          <button 
+          <button
             onClick={() => fileInputRef.current?.click()}
             className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors"
           >
@@ -196,7 +221,7 @@ export default function FileManager({ initialPath = "/upload", initialItems = []
             <span className="font-medium text-blue-800">{Math.round(uploadProgress)}%</span>
           </div>
           <div className="w-full bg-blue-200 rounded-full h-2">
-            <div 
+            <div
               data-test-id="upload-progress-bar"
               className="bg-blue-600 h-2 rounded-full transition-all duration-300"
               style={{ width: `${uploadProgress}%` }}
@@ -213,30 +238,30 @@ export default function FileManager({ initialPath = "/upload", initialItems = []
 
       {/* Main Content Area */}
       <div className="flex flex-1 overflow-hidden">
-        
+
         {/* Sidebar: Directory Tree */}
         <aside data-test-id="directory-tree" className="w-64 bg-gray-100 dark:bg-zinc-900 border-r overflow-y-auto p-4 hidden md:block">
-           <h3 className="font-semibold mb-4 text-sm text-gray-500 uppercase tracking-wider">Directories</h3>
-           <ul className="space-y-1">
-              <li 
-                className={`flex items-center space-x-2 p-2 rounded cursor-pointer ${currentPath === '/upload' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400' : 'hover:bg-gray-200 dark:hover:bg-zinc-800'}`}
-                onClick={() => handleNavigate('/upload')}
+          <h3 className="font-semibold mb-4 text-sm text-gray-500 uppercase tracking-wider">Directories</h3>
+          <ul className="space-y-1">
+            <li
+              className={`flex items-center space-x-2 p-2 rounded cursor-pointer ${currentPath === '/upload' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400' : 'hover:bg-gray-200 dark:hover:bg-zinc-800'}`}
+              onClick={() => handleNavigate('/upload')}
+            >
+              <Folder size={16} />
+              <span>/upload</span>
+            </li>
+            {/* Simplistic tree showing subdirectories of current path for now */}
+            {items.filter((i: FileItem) => i.type === 'd').map((dir: FileItem) => (
+              <li
+                key={dir.name}
+                className="flex items-center space-x-2 p-2 pl-6 rounded cursor-pointer hover:bg-gray-200 dark:hover:bg-zinc-800"
+                onClick={() => handleNavigate(currentPath === '/' ? `/${dir.name}` : `${currentPath}/${dir.name}`)}
               >
-                 <Folder size={16} />
-                 <span>/upload</span>
+                <Folder size={16} />
+                <span>{dir.name}</span>
               </li>
-              {/* Simplistic tree showing subdirectories of current path for now */}
-              {items.filter(i => i.type === 'd').map(dir => (
-                <li 
-                  key={dir.name}
-                  className="flex items-center space-x-2 p-2 pl-6 rounded cursor-pointer hover:bg-gray-200 dark:hover:bg-zinc-800"
-                  onClick={() => handleNavigate(currentPath === '/' ? `/${dir.name}` : `${currentPath}/${dir.name}`)}
-                >
-                   <Folder size={16} />
-                   <span>{dir.name}</span>
-                </li>
-              ))}
-           </ul>
+            ))}
+          </ul>
         </aside>
 
         {/* Center: File List View */}
@@ -247,8 +272,8 @@ export default function FileManager({ initialPath = "/upload", initialItems = []
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {items.map((item) => (
-                <div 
+              {items.map((item: FileItem) => (
+                <div
                   key={item.name}
                   data-test-id={item.type === "d" ? "dir-item" : "file-item"}
                   className="bg-white dark:bg-zinc-900 p-4 rounded-xl border shadow-sm hover:shadow-md transition-shadow group relative"
@@ -262,25 +287,42 @@ export default function FileManager({ initialPath = "/upload", initialItems = []
                       <p className="text-xs text-gray-500">{item.type === "d" ? "Folder" : `${(item.size / 1024).toFixed(1)} KB`}</p>
                     </div>
                   </div>
-                  
+
                   <div className="flex items-center justify-end space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
                     {item.type === "d" ? (
-                      <button 
-                        onClick={() => handleNavigate(currentPath === '/' ? `/${item.name}` : `${currentPath}/${item.name}`)}
-                        className="p-1.5 text-blue-600 hover:bg-blue-50 rounded"
-                      >
-                        <Folder size={16} />
-                      </button>
+                      <>
+                        <button
+                          onClick={() => handleNavigate(currentPath === '/' ? `/${item.name}` : `${currentPath}/${item.name}`)}
+                          className="p-1.5 text-blue-600 hover:bg-blue-50 rounded"
+                          title="Open folder"
+                        >
+                          <Folder size={16} />
+                        </button>
+                        <button
+                          onClick={() => handleRename(item.name)}
+                          className="p-1.5 text-green-600 hover:bg-green-50 rounded"
+                          title="Rename"
+                        >
+                          <Edit2 size={16} />
+                        </button>
+                      </>
                     ) : (
                       <>
-                        <button 
+                        <button
                           onClick={() => handlePreview(item)}
                           className="p-1.5 text-gray-600 hover:bg-gray-100 rounded"
                           title="Preview"
                         >
                           <Eye size={16} />
                         </button>
-                        <button 
+                        <button
+                          onClick={() => handleRename(item.name)}
+                          className="p-1.5 text-green-600 hover:bg-green-50 rounded"
+                          title="Rename"
+                        >
+                          <Edit2 size={16} />
+                        </button>
+                        <button
                           onClick={() => handleDownload(item.name)}
                           className="p-1.5 text-blue-600 hover:bg-blue-50 rounded"
                           title="Download"
@@ -289,7 +331,7 @@ export default function FileManager({ initialPath = "/upload", initialItems = []
                         </button>
                       </>
                     )}
-                    <button 
+                    <button
                       onClick={() => handleDelete(item.name)}
                       className="p-1.5 text-red-600 hover:bg-red-50 rounded"
                       title="Delete"
@@ -300,9 +342,9 @@ export default function FileManager({ initialPath = "/upload", initialItems = []
                 </div>
               ))}
               {items.length === 0 && (
-                 <div className="col-span-full py-12 text-center text-gray-400">
-                    Directory is empty
-                 </div>
+                <div className="col-span-full py-12 text-center text-gray-400">
+                  Directory is empty
+                </div>
               )}
             </div>
           )}
@@ -311,17 +353,17 @@ export default function FileManager({ initialPath = "/upload", initialItems = []
         {/* Right Sidebar: Preview Panel */}
         {previewItem && (
           <aside data-test-id="preview-panel" className="w-80 bg-white dark:bg-zinc-900 border-l flex flex-col items-center p-6 shadow-xl z-10 relative">
-            <button 
+            <button
               onClick={() => setPreviewItem(null)}
               className="absolute top-4 right-4 p-1 text-gray-400 hover:text-gray-600"
             >
               <X size={20} />
             </button>
-            
+
             <div className="h-24 w-24 bg-gray-100 dark:bg-zinc-800 rounded-2xl flex items-center justify-center mb-4">
-               {previewItem.name.match(/\.(png|jpe?g|gif|webp|svg)$/i) ? <ImageIcon size={48} className="text-gray-400" /> : <FileText size={48} className="text-gray-400" />}
+              {previewItem.name.match(/\.(png|jpe?g|gif|webp|svg)$/i) ? <ImageIcon size={48} className="text-gray-400" /> : <FileText size={48} className="text-gray-400" />}
             </div>
-            
+
             <h3 className="font-semibold text-lg text-center break-all mb-1">{previewItem.name}</h3>
             <p className="text-sm text-gray-500 mb-6">{(previewItem.size / 1024).toFixed(2)} KB • {new Date(previewItem.modifyTime).toLocaleDateString()}</p>
 
@@ -336,7 +378,7 @@ export default function FileManager({ initialPath = "/upload", initialItems = []
               ) : (
                 <div data-test-id="preview-unsupported" className="text-center text-gray-400">
                   <p className="text-sm mb-4">Preview not available</p>
-                  <button 
+                  <button
                     onClick={() => handleDownload(previewItem.name)}
                     className="bg-blue-600 text-white px-4 py-2 rounded shadow text-sm font-medium hover:bg-blue-700 transition"
                   >
@@ -346,7 +388,7 @@ export default function FileManager({ initialPath = "/upload", initialItems = []
               )}
             </div>
 
-            <button 
+            <button
               onClick={() => handleDownload(previewItem.name)}
               className="w-full py-2 border border-gray-300 rounded font-medium shadow-sm hover:bg-gray-50 dark:hover:bg-zinc-800 transition"
             >

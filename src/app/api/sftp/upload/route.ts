@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
 
     const sftp = await getSftp();
     
-    return await new Promise((resolve, reject) => {
+    return await new Promise<NextResponse>((resolve, reject) => {
       const busboy = Busboy({
         headers: {
           "content-type": contentType,
