@@ -129,13 +129,15 @@ export default function FileManager({ initialPath = "/upload", initialItems = []
     setPreviewUrl(null);
 
     const targetPath = currentPath === "/" ? `/${item.name}` : `${currentPath}/${item.name}`;
-    const url = `/api/sftp/download?path=${encodeURIComponent(targetPath)}`;
+    const url = `/api/sftp/download?path=${encodeURIComponent(targetPath)}&preview=true&t=${Date.now()}`;
 
-    // Text extension check
-    const isText = item.name.match(/\.(txt|md|json|csv|log)$/i);
+    // File type detection
+    const isText = item.name.match(/\.(txt|md|json|csv|log|js|ts|tsx|py|sql|sh|env|yaml|yml|xml|css|html)$/i);
     const isImage = item.name.match(/\.(png|jpe?g|gif|webp|svg)$/i);
+    const isPdf = item.name.match(/\.pdf$/i);
+    const isOffice = item.name.match(/\.(docx|pptx|doc|ppt|xlsx|xls)$/i);
 
-    if (isImage) {
+    if (isImage || isPdf) {
       setPreviewUrl(url);
     } else if (isText) {
       try {
@@ -145,6 +147,8 @@ export default function FileManager({ initialPath = "/upload", initialItems = []
       } catch (err) {
         setPreviewContent("Failed to load text preview.");
       }
+    } else if (isOffice) {
+      setPreviewUrl(url); // We'll handle different URL if needed, but for now we just mark it
     }
   };
 
@@ -367,18 +371,88 @@ export default function FileManager({ initialPath = "/upload", initialItems = []
             <h3 className="font-semibold text-lg text-center break-all mb-1">{previewItem.name}</h3>
             <p className="text-sm text-gray-500 mb-6">{(previewItem.size / 1024).toFixed(2)} KB • {new Date(previewItem.modifyTime).toLocaleDateString()}</p>
 
-            <div className="w-full bg-gray-50 dark:bg-zinc-950 border rounded-lg overflow-hidden min-h-[200px] flex items-center justify-center p-4 mb-6">
+            <div className="w-full bg-gray-50 dark:bg-zinc-950 border rounded-lg overflow-hidden min-h-[300px] flex items-center justify-center p-0 mb-6">
               {previewUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img data-test-id="preview-image" src={previewUrl} alt={previewItem.name} className="max-w-full max-h-[300px] object-contain" />
+                previewItem.name.match(/\.pdf$/i) ? (
+                  <iframe 
+                    data-test-id="preview-pdf"
+                    src={previewUrl} 
+                    className="w-full h-[400px] border-none" 
+                    title={previewItem.name}
+                  />
+                ) : previewItem.name.match(/\.(docx|pptx|doc|ppt|xlsx|xls)$/i) ? (
+                  <div data-test-id="preview-office" className="w-full text-left p-6">
+                    {(() => {
+                      const ext = previewItem.name.split('.').pop()?.toLowerCase();
+                      const isWord = ['doc', 'docx'].includes(ext || '');
+                      const isExcel = ['xls', 'xlsx'].includes(ext || '');
+                      const isPPT = ['ppt', 'pptx'].includes(ext || '');
+                      
+                      const themeColor = isWord ? 'text-blue-600 bg-blue-50 dark:bg-blue-900/20 border-blue-100 dark:border-blue-800' :
+                                         isExcel ? 'text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20 border-emerald-100 dark:border-emerald-800' :
+                                         isPPT ? 'text-orange-600 bg-orange-50 dark:bg-orange-900/20 border-orange-100 dark:border-orange-800' :
+                                         'text-gray-600 bg-gray-50 dark:bg-zinc-900 border-gray-100 dark:border-zinc-800';
+                      
+                      const typeLabel = isWord ? 'Microsoft Word' : isExcel ? 'Microsoft Excel' : isPPT ? 'PowerPoint' : 'Office Document';
+
+                      return (
+                        <>
+                          <div className={`flex items-center space-x-3 mb-6 p-4 rounded-xl border ${themeColor}`}>
+                            <FileText size={32} />
+                            <div>
+                              <p className="text-sm font-bold opacity-90">{typeLabel}</p>
+                              <p className="text-[10px] uppercase tracking-wider font-bold opacity-70">.{ext}</p>
+                            </div>
+                          </div>
+                          
+                          <div className="space-y-4">
+                            <div>
+                              <p className="text-[10px] text-gray-400 uppercase font-bold mb-1">File Name</p>
+                              <p className="text-sm font-medium break-all">{previewItem.name}</p>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                              <div>
+                                <p className="text-[10px] text-gray-400 uppercase font-bold mb-1">File Size</p>
+                                <p className="text-sm font-medium">{(previewItem.size / 1024).toFixed(2)} KB</p>
+                              </div>
+                              <div>
+                                <p className="text-[10px] text-gray-400 uppercase font-bold mb-1">Last Modified</p>
+                                <p className="text-sm font-medium">{new Date(previewItem.modifyTime).toLocaleDateString()}</p>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="mt-8 pt-6 border-t border-gray-100 dark:border-zinc-800">
+                            <p className="text-xs text-gray-500 mb-4 italic">Full visual preview for Office formats requires a specialized viewer. Please download the file to view its contents.</p>
+                            <button 
+                              onClick={() => handleDownload(previewItem.name)}
+                              className={`w-full text-white px-4 py-2 rounded shadow text-sm font-bold transition flex items-center justify-center space-x-2 ${
+                                isWord ? 'bg-blue-600 hover:bg-blue-700' :
+                                isExcel ? 'bg-emerald-600 hover:bg-emerald-700' :
+                                isPPT ? 'bg-orange-600 hover:bg-orange-700' :
+                                'bg-gray-600 hover:bg-gray-700'
+                              }`}
+                            >
+                              <Download size={16} />
+                              <span>Download to View</span>
+                            </button>
+                          </div>
+                        </>
+                      );
+                    })()}
+                  </div>
+                ) : (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img data-test-id="preview-image" src={previewUrl} alt={previewItem.name} className="max-w-full max-h-[400px] object-contain" />
+                )
               ) : previewContent ? (
-                <div className="w-full max-h-[300px] overflow-y-auto text-xs font-mono text-left">
+                <div className="w-full max-h-[400px] overflow-y-auto text-xs font-mono text-left p-4">
                   <pre data-test-id="preview-text">{previewContent}</pre>
                 </div>
               ) : (
-                <div data-test-id="preview-unsupported" className="text-center text-gray-400">
+                <div data-test-id="preview-unsupported" className="text-center text-gray-400 p-4">
                   <p className="text-sm mb-4">Preview not available</p>
-                  <button
+                  <button 
                     onClick={() => handleDownload(previewItem.name)}
                     className="bg-blue-600 text-white px-4 py-2 rounded shadow text-sm font-medium hover:bg-blue-700 transition"
                   >

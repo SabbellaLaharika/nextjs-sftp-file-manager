@@ -59,12 +59,45 @@ export async function GET(request: NextRequest) {
         });
 
         const filename = basename(path) || "download";
+        const isPreview = searchParams.get("preview") === "true";
         
+        // Basic MIME type mapping
+        const getMimeType = (file: string) => {
+          const ext = file.split(".").pop()?.toLowerCase();
+          switch (ext) {
+            case "pdf": return "application/pdf";
+            case "png": return "image/png";
+            case "jpg":
+            case "jpeg": return "image/jpeg";
+            case "gif": return "image/gif";
+            case "webp": return "image/webp";
+            case "svg": return "image/svg+xml";
+            case "txt": return "text/plain";
+            case "md": return "text/markdown";
+            case "json": return "application/json";
+            case "html": return "text/html";
+            case "css": return "text/css";
+            case "js": return "application/javascript";
+            default: return "application/octet-stream";
+          }
+        };
+
+        const contentType = getMimeType(filename);
+        const contentHeader = isPreview 
+          ? "inline"
+          : `attachment; filename="${filename}"`;
+        
+        console.log(`[SFTP PREVIEW] Serving file: ${filename} | MIME: ${contentType} | Disposition: ${contentHeader}`);
+
         const response = new NextResponse(webStream, {
           headers: {
-            "Content-Type": "application/octet-stream",
-            "Content-Disposition": `attachment; filename="${filename}"`,
+            "Content-Type": contentType,
+            "Content-Disposition": contentHeader,
             "Content-Length": stats.size.toString(),
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Pragma": "no-cache",
+            "Expires": "0",
+            "X-Content-Type-Options": "nosniff",
           },
         });
 
