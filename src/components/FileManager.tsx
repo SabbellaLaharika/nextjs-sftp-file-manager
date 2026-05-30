@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import { Folder, File, Upload, Trash, Download, Eye, FileText, Image as ImageIcon, X, Edit2 } from "lucide-react";
+import { Folder, File, Upload, Trash, Download, Eye, FileText, Image as ImageIcon, X, Edit2, Video } from "lucide-react";
 
 type FileItem = {
   name: string;
@@ -9,6 +9,31 @@ type FileItem = {
   size: number;
   modifyTime: number;
   rights: any;
+};
+
+const getFileStyles = (filename: string) => {
+  const ext = filename.split('.').pop()?.toLowerCase() || '';
+  
+  if (['mp4', 'webm', 'ogg', 'mov'].includes(ext)) {
+    return { icon: <Video size={24} />, colorClass: 'bg-purple-50 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400' };
+  }
+  if (['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp'].includes(ext)) {
+    return { icon: <ImageIcon size={24} />, colorClass: 'bg-pink-50 text-pink-600 dark:bg-pink-900/30 dark:text-pink-400' };
+  }
+  if (['pdf'].includes(ext)) {
+    return { icon: <FileText size={24} />, colorClass: 'bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-400' };
+  }
+  if (['doc', 'docx'].includes(ext)) {
+    return { icon: <FileText size={24} />, colorClass: 'bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400' };
+  }
+  if (['xls', 'xlsx', 'csv'].includes(ext)) {
+    return { icon: <FileText size={24} />, colorClass: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400' };
+  }
+  if (['ppt', 'pptx'].includes(ext)) {
+    return { icon: <FileText size={24} />, colorClass: 'bg-orange-50 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400' };
+  }
+  
+  return { icon: <File size={24} />, colorClass: 'bg-gray-100 text-gray-600 dark:bg-zinc-800 dark:text-gray-400' };
 };
 
 export default function FileManager({ initialPath = "/upload", initialItems = [] }: { initialPath?: string; initialItems?: FileItem[] }) {
@@ -25,6 +50,10 @@ export default function FileManager({ initialPath = "/upload", initialItems = []
   const [previewItem, setPreviewItem] = useState<FileItem | null>(null);
   const [previewContent, setPreviewContent] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+
+  // Rename state
+  const [renameState, setRenameState] = useState<{oldName: string, newName: string} | null>(null);
+  const [isRenaming, setIsRenaming] = useState(false);
 
   const fetchDirectory = async (path: string) => {
     setLoading(true);
@@ -136,8 +165,9 @@ export default function FileManager({ initialPath = "/upload", initialItems = []
     const isImage = item.name.match(/\.(png|jpe?g|gif|webp|svg)$/i);
     const isPdf = item.name.match(/\.pdf$/i);
     const isOffice = item.name.match(/\.(docx|pptx|doc|ppt|xlsx|xls)$/i);
+    const isVideo = item.name.match(/\.(mp4|webm|ogg|mov)$/i);
 
-    if (isImage || isPdf) {
+    if (isImage || isPdf || isVideo) {
       setPreviewUrl(url);
     } else if (isText) {
       try {
@@ -152,13 +182,20 @@ export default function FileManager({ initialPath = "/upload", initialItems = []
     }
   };
 
-  const handleRename = async (oldName: string) => {
-    const newName = prompt("Enter new name:", oldName);
-    if (!newName || newName === oldName) return;
+  const openRenameModal = (oldName: string) => {
+    setRenameState({ oldName, newName: oldName });
+  };
 
+  const submitRename = async () => {
+    if (!renameState || !renameState.newName || renameState.newName === renameState.oldName) {
+      setRenameState(null);
+      return;
+    }
+
+    setIsRenaming(true);
     try {
-      const fromPath = currentPath === "/" ? `/${oldName}` : `${currentPath}/${oldName}`;
-      const toPath = currentPath === "/" ? `/${newName}` : `${currentPath}/${newName}`;
+      const fromPath = currentPath === "/" ? `/${renameState.oldName}` : `${currentPath}/${renameState.oldName}`;
+      const toPath = currentPath === "/" ? `/${renameState.newName}` : `${currentPath}/${renameState.newName}`;
 
       const res = await fetch("/api/sftp/rename", {
         method: "PATCH",
@@ -172,8 +209,11 @@ export default function FileManager({ initialPath = "/upload", initialItems = []
       }
 
       fetchDirectory(currentPath);
+      setRenameState(null);
     } catch (err: any) {
       setError(err.message);
+    } finally {
+      setIsRenaming(false);
     }
   };
 
@@ -283,9 +323,15 @@ export default function FileManager({ initialPath = "/upload", initialItems = []
                   className="bg-white dark:bg-zinc-900 p-4 rounded-xl border shadow-sm hover:shadow-md transition-shadow group relative"
                 >
                   <div className="flex items-start space-x-3 mb-3">
-                    <div className={`p-2 rounded-lg ${item.type === 'd' ? 'bg-blue-50 text-blue-600' : 'bg-orange-50 text-orange-600'}`}>
-                      {item.type === "d" ? <Folder size={24} /> : <File size={24} />}
-                    </div>
+                    {item.type === "d" ? (
+                      <div className="p-2 rounded-lg bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
+                        <Folder size={24} />
+                      </div>
+                    ) : (
+                      <div className={`p-2 rounded-lg ${getFileStyles(item.name).colorClass}`}>
+                        {getFileStyles(item.name).icon}
+                      </div>
+                    )}
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-sm truncate" title={item.name}>{item.name}</p>
                       <p className="text-xs text-gray-500">{item.type === "d" ? "Folder" : `${(item.size / 1024).toFixed(1)} KB`}</p>
@@ -303,7 +349,7 @@ export default function FileManager({ initialPath = "/upload", initialItems = []
                           <Folder size={16} />
                         </button>
                         <button
-                          onClick={() => handleRename(item.name)}
+                          onClick={() => openRenameModal(item.name)}
                           className="p-1.5 text-green-600 hover:bg-green-50 rounded"
                           title="Rename"
                         >
@@ -320,7 +366,7 @@ export default function FileManager({ initialPath = "/upload", initialItems = []
                           <Eye size={16} />
                         </button>
                         <button
-                          onClick={() => handleRename(item.name)}
+                          onClick={() => openRenameModal(item.name)}
                           className="p-1.5 text-green-600 hover:bg-green-50 rounded"
                           title="Rename"
                         >
@@ -365,7 +411,9 @@ export default function FileManager({ initialPath = "/upload", initialItems = []
             </button>
 
             <div className="h-24 w-24 bg-gray-100 dark:bg-zinc-800 rounded-2xl flex items-center justify-center mb-4">
-              {previewItem.name.match(/\.(png|jpe?g|gif|webp|svg)$/i) ? <ImageIcon size={48} className="text-gray-400" /> : <FileText size={48} className="text-gray-400" />}
+              {previewItem.name.match(/\.(png|jpe?g|gif|webp|svg)$/i) ? <ImageIcon size={48} className="text-gray-400" /> : 
+               previewItem.name.match(/\.(mp4|webm|ogg|mov)$/i) ? <Video size={48} className="text-gray-400" /> : 
+               <FileText size={48} className="text-gray-400" />}
             </div>
 
             <h3 className="font-semibold text-lg text-center break-all mb-1">{previewItem.name}</h3>
@@ -379,6 +427,13 @@ export default function FileManager({ initialPath = "/upload", initialItems = []
                     src={previewUrl} 
                     className="w-full h-[400px] border-none" 
                     title={previewItem.name}
+                  />
+                ) : previewItem.name.match(/\.(mp4|webm|ogg|mov)$/i) ? (
+                  <video 
+                    data-test-id="preview-video"
+                    src={previewUrl} 
+                    controls
+                    className="w-full max-h-[400px] object-contain bg-black" 
                   />
                 ) : previewItem.name.match(/\.(docx|pptx|doc|ppt|xlsx|xls)$/i) ? (
                   <div data-test-id="preview-office" className="w-full text-left p-6">
@@ -451,13 +506,7 @@ export default function FileManager({ initialPath = "/upload", initialItems = []
                 </div>
               ) : (
                 <div data-test-id="preview-unsupported" className="text-center text-gray-400 p-4">
-                  <p className="text-sm mb-4">Preview not available</p>
-                  <button 
-                    onClick={() => handleDownload(previewItem.name)}
-                    className="bg-blue-600 text-white px-4 py-2 rounded shadow text-sm font-medium hover:bg-blue-700 transition"
-                  >
-                    Download File
-                  </button>
+                  <p className="text-sm">Preview not available for this file format.</p>
                 </div>
               )}
             </div>
@@ -471,6 +520,47 @@ export default function FileManager({ initialPath = "/upload", initialItems = []
           </aside>
         )}
       </div>
+
+      {/* Rename Modal */}
+      {renameState && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-xl w-full max-w-md p-6">
+            <h3 className="text-lg font-bold mb-4">Rename Item</h3>
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                New Name
+              </label>
+              <input
+                type="text"
+                value={renameState.newName}
+                onChange={(e) => setRenameState({ ...renameState, newName: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-zinc-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-zinc-800"
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') submitRename();
+                  if (e.key === 'Escape') setRenameState(null);
+                }}
+              />
+            </div>
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => setRenameState(null)}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 dark:text-gray-300 dark:bg-zinc-800 hover:bg-gray-200 dark:hover:bg-zinc-700 rounded-lg transition-colors"
+                disabled={isRenaming}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={submitRename}
+                disabled={isRenaming || !renameState.newName || renameState.newName === renameState.oldName}
+                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors disabled:opacity-50"
+              >
+                {isRenaming ? 'Renaming...' : 'Rename'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

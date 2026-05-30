@@ -55,8 +55,9 @@ The repository includes a mock SFTP server (`atmoz/sftp`) via Docker Compose for
 ```bash
 docker-compose up --build
 ```
-- **Next.js App:** `http://localhost:3000`
+- **Next.js App:** `http://localhost:3000` *(Open this in your web browser)*
 - **Mock SFTP Server:** `localhost:2222` (Mapped to internal Docker port 22)
+  - > ⚠️ **Note:** Do *not* open `localhost:2222` in a web browser! It is an SFTP port. If you want to manually inspect the storage container, connect to this port using a desktop client like FileZilla (`user: testuser`, `pass: testpass`).
 
 ### Local Development (Node.js)
 If you prefer running the Next.js app locally against the Dockerized SFTP server:
