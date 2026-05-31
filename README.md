@@ -81,8 +81,8 @@ sequenceDiagram
     participant SFTP as Remote SFTP
 
     Note over Client,SFTP: ❌ Traditional Buffering (OOM Crash)
-    Client->>NextJS: Send 5GB File
-    Note over NextJS: RAM fills up (5GB)<br/>Server Crashes!
+    Client->>NextJS: Send Large File
+    Note over NextJS: RAM fills up<br/>Server Crashes!
     NextJS--xSFTP: Transfer Failed
 
     Note over Client,SFTP: ✅ Implemented Streaming (Near-Zero RAM)
@@ -93,7 +93,7 @@ sequenceDiagram
     Note over NextJS: Memory stays flat (~10MB)
     Client->>NextJS: Stream Final Chunk
     NextJS->>SFTP: Pipe Final Chunk
-    Note over SFTP: 5GB File Reconstructed
+    Note over SFTP: Full File Reconstructed
 ```
 
 *   **⏱️ Challenge 2: Overcoming SSH Handshake Latency in Serverless**
