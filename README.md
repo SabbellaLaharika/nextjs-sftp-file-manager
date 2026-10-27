@@ -1,6 +1,12 @@
 # Next.js SFTP File Manager
 
-A robust, stateless web-based file manager built with Next.js 14 and React that securely bridges client browsers to any remote server via SFTP. 
+A robust, stateless web-based file manager built with Next.js 14 and React that securely bridges client browsers to any remote server via SFTP.
+
+
+## 🎥 Project Demo
+
+[![Watch the project demo on YouTube](https://img.youtube.com/vi/P6SvGFok0qY/hqdefault.jpg)](https://youtu.be/P6SvGFok0qY)
+
 
 ## 🌍 Real-World Use Cases
 While standard desktop clients (like FileZilla) exist, this architecture solves several enterprise-level problems:
