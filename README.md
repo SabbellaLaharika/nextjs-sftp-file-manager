@@ -5,7 +5,7 @@ A robust, stateless web-based file manager built with Next.js 14 and React that 
 
 ## 🎥 Project Demo
 
-[![Watch the project demo on YouTube](https://img.youtube.com/vi/P6SvGFok0qY/hqdefault.jpg)](https://youtu.be/P6SvGFok0qY)
+[![Watch the project demo on YouTube](https://img.youtube.com/vi/P6SvGFok0qY/maxresdefault.jpg)](https://youtu.be/P6SvGFok0qY)
 
 
 ## 🌍 Real-World Use Cases
